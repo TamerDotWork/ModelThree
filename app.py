@@ -126,7 +126,7 @@ def enhance_ui_elements(ui_elements):
     return enhanced
 
 
-@app.route("ModelThree/process-ui", methods=["POST"])
+@app.route("/ModelThree/process-ui", methods=["POST"])
 def process_ui():
     image_bytes = None
 
