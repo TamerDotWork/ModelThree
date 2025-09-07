@@ -7,7 +7,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 # Enable CORS for specific origin and all methods (GET, POST, OPTIONS)
-CORS(app, origins=["https://tamer.work"], supports_credentials=True)
+CORS(app)
 
 GEMINI_API_KEY = 'AIzaSyAtH6b2eUlVWQ1dfkVbnzsp_zHhaY9rzFA'
 GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
