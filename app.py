@@ -125,7 +125,7 @@ def enhance_ui_elements(ui_elements):
     return enhanced
 
 
-@app.route("/process-ui", methods=["GET", "POST", "OPTIONS"])
+@app.route("/ModelThree/process-ui", methods=["GET", "POST", "OPTIONS"])
 def process_ui():
     # Handle preflight OPTIONS request
     if request.method == "OPTIONS":
