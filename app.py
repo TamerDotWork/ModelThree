@@ -6,8 +6,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins=["https://tamer.work"])
-
+# Enable CORS for specific origin and all methods (GET, POST, OPTIONS)
+CORS(app, origins=["https://tamer.work"], supports_credentials=True)
 
 GEMINI_API_KEY = 'AIzaSyAtH6b2eUlVWQ1dfkVbnzsp_zHhaY9rzFA'
 GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
@@ -97,13 +97,12 @@ def enhance_ui_elements(ui_elements):
 
         # Input with label
         if e_type == "Input/text":
-            # Try to detect label above input
             label = elem.get("label")
             if not label and i > 0 and ui_elements[i - 1].get("type") == "Text":
                 label = ui_elements[i - 1].get("value", "")
             new_elem["label"] = label or "Label"
 
-        # Button primary / close
+        # Buttons
         if e_type.startswith("Button"):
             if "close" in e_type.lower():
                 new_elem["type"] = "Button/close"
@@ -117,7 +116,7 @@ def enhance_ui_elements(ui_elements):
             new_elem["title"] = elem.get("title") or "Myhead"
             new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
 
-        # Standalone text
+        # Text
         if e_type == "Text":
             new_elem["value"] = elem.get("value", "Text")
 
@@ -126,16 +125,26 @@ def enhance_ui_elements(ui_elements):
     return enhanced
 
 
-@app.route("/ModelThree/process-ui", methods=["POST"])
+@app.route("/ModelThree/process-ui", methods=["GET", "POST", "OPTIONS"])
 def process_ui():
+    # Handle preflight OPTIONS request
+    if request.method == "OPTIONS":
+        return jsonify({"message": "CORS preflight OK"}), 200
+
+    # Simple GET request for testing service
+    if request.method == "GET":
+        return jsonify({
+            "message": "UI Processing API is running",
+            "allowed_methods": ["GET", "POST"]
+        }), 200
+
+    # --- POST flow ---
     image_bytes = None
 
     if "image" in request.files:
-        # Case 1: multipart form upload
         image_file = request.files["image"]
         image_bytes = image_file.read()
     else:
-        # Case 2: base64 JSON (from Figma plugin)
         data = request.get_json()
         if data and "image_base64" in data:
             image_bytes = base64.b64decode(data["image_base64"])
@@ -164,7 +173,6 @@ def process_ui():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 if __name__ == "__main__":
