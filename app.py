@@ -72,7 +72,7 @@ def enhance_ui_elements(ui_elements):
     return enhanced
 
 
-@app.route("/ModelThree/process-ui", methods=["GET", "POST"])
+@app.route("/ModelThree/api", methods=["GET", "POST"])
 def process_ui():
     # GET for status/log
     if request.method == "GET":
