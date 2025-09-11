@@ -1,23 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Flask AJAX Example</title>
+    <title>Flask AJAX Image Upload</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <h1>Flask AJAX Example</h1>
-    <button id="sendBtn">Send POST</button>
+    <h1>Upload Image to Flask</h1>
+
+    <!-- File input -->
+    <input type="file" id="imageFile" accept="image/*">
+    <button id="sendBtn">Upload</button>
 
     <h2>Response:</h2>
     <pre id="response"></pre>
 
     <script>
         $('#sendBtn').click(function() {
+            let fileInput = $('#imageFile')[0].files[0];
+
+            if (!fileInput) {
+                alert("Please select an image first!");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("image", fileInput);
+
             $.ajax({
-                url: '/ModelThree/api',
+                url: '/ModelThree/api',   // can also use '/api'
                 type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ message: 'Hello from AJAX!' }),
+                data: formData,
+                processData: false,       // prevent jQuery from processing the data
+                contentType: false,       // let browser set Content-Type
                 success: function(response) {
                     $('#response').text(JSON.stringify(response, null, 2));
                 },
@@ -26,16 +40,6 @@
                 }
             });
         });
-
-        // Optional: Fetch logs automatically
-        function fetchLogs() {
-            $.get('/api', function(data) {
-                $('#response').text(JSON.stringify(data, null, 2));
-            });
-        }
-
-        // Uncomment to fetch logs on page load
-        // fetchLogs();
     </script>
 </body>
 </html>
