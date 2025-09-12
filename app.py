@@ -4,11 +4,11 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)  # allow cross-origin requests
 
-@app.route('/ModelThree/api', methods=['POST'])
+@app.route('/api', methods=['POST'])
 def handle_post():
     return jsonify({"status": "success", "message": "POST request received"})
 
-@app.route('/ModelThree/api', methods=['GET'])
+@app.route('/api', methods=['GET'])
 def handle_get():
     return jsonify({"status": "success", "message": "GET request received"})
 
