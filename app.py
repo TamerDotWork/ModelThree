@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify ,render_template
- 
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app, resources={r"/ModelThree/*": {"origins": "https://tamer.work"}}, supports_credentials=True)
 
 
 # Store logs in memory for demonstration
