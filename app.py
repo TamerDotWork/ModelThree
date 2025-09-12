@@ -1,10 +1,14 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, url_for
+from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# Store logs in memory for demo
+# Enable CORS for frontend domain
+CORS(app, resources={r"/ModelThree/*": {"origins": "https://tamer.work"}})
+
+# Store logs in memory
 logs = []
 
 # Configure upload folder
@@ -16,7 +20,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 def index():
     return render_template('index.html')
 
-@app.route('/api', methods=['GET', 'POST'])
+@app.route('/ModelThree/api', methods=['GET', 'POST'])
 def api():
     if request.method == 'POST':
         if 'file' not in request.files:
@@ -30,8 +34,8 @@ def api():
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
         file.save(filepath)
 
-        # Log file info
-        file_url = f"/uploads/{filename}"
+        # Build absolute file URL (so frontend can display it from ai.tamer.work)
+        file_url = f"https://ai.tamer.work/uploads/{filename}"
         logs.append({"filename": filename, "url": file_url})
         print(f"Received file: {filename}")
 
