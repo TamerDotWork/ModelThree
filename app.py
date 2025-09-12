@@ -14,8 +14,7 @@ def index():
 @app.route('/ModelThree/api', methods=['GET', 'POST'])
 def api():
     if request.method == 'POST':
-        data = request.json  # expecting JSON
-        return jsonify({"status": "success", "received": data})
+         return jsonify({"status": "success", "received": data})
     
     # GET request: return logs
     return jsonify({"status": "success", "logs": logs})
