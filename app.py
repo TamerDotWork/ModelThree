@@ -11,7 +11,7 @@ logs = []
 def index():
     return render_template('index.html')
 
-@app.route('/ModelThree/api', methods=['GET', 'POST'])
+@app.route('/api', methods=['GET', 'POST'])
 def api():
     if request.method == 'POST':
          return jsonify({"status": "success", "received": data})
