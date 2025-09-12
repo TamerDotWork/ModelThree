@@ -7,7 +7,7 @@ app = Flask(__name__)
 def handle_post():
     return jsonify({"status": "success", "message": "POST request received"})
 
-@app.route('/api', methods=['GET'])
+@app.route('/', methods=['GET'])
 def handle_get():
     return jsonify({"status": "success", "message": "GET request received"})
 
