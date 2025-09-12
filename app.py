@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify ,render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+
 
 # Store logs in memory for demonstration
 logs = []
