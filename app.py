@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify ,render_template
-from flask_cors import CORS
+ 
 
 app = Flask(__name__)
 
@@ -14,9 +14,9 @@ def index():
 @app.route('/api', methods=['GET', 'POST'])
 def api():
     if request.method == 'POST':
-        logs.append(request.json)
-        print(logs)
-        return jsonify({"status": "success", "message": "Data received", "data": request.json})
+ 
+        print("logs")
+
     
     # GET request: return logs
     return jsonify({"status": "success", "logs": logs})
