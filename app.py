@@ -12,10 +12,8 @@ def index():
 @app.route('/api', methods=['GET', 'POST'])
 def api():
     if request.method == 'POST':
-        data = request.json  # expecting JSON payload
-        logs.append(data)
-        print(f"Received POST data: {data}")  # log to console
-        return jsonify({"status": "success", "data_received": data})
+        data = request.json  # expecting JSON
+        return jsonify({"status": "success", "received": data})
     
     # GET request: return logs
     return jsonify({"status": "success", "logs": logs})
