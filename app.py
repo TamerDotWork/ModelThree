@@ -21,9 +21,13 @@ def call_gemini_api(image_bytes):
 You are a UX-aware assistant. Analyze this UI sketch image and return JSON ONLY.
 Follow these instructions strictly:
 
-1. Start with the main container element: either "Screen/main" or a "Popup" type.
-2. Each container should have a "title" or "label".
-3. Include all child elements in an "elements" array.
+1. Identify the main container (Screen or Popup) and provide a descriptive 'context' for it.
+   - Include whether it is a screen or popup.
+   - If the container has a title or header text, include it in the container, not as a separate element.
+2. Include all child elements in an 'elements' array.
+3. Combine label + input fields into a single UI element if:
+   - The text is near, small, or above the input field
+   - The text visually looks like the label for the input
 4. Each element must have the following fields (if applicable):
     - type: The type of element (Text, Input/text, Button/primary, Button/close, etc.)
     - label/title: The text label or title associated with the element
@@ -31,34 +35,29 @@ Follow these instructions strictly:
     - status: Optional state info (enabled, disabled, selected, etc.)
     - context: Optional description/context for the element's use
 5. Maintain the hierarchy of containers and their inner elements.
-6. Return valid JSON only. Example structure:
+6. Do not duplicate container title/head text as a separate element.
+7. Return valid JSON only. Example structure:
 
 {
     "ui_elements": [
         {
             "type": "Screen/main",
             "title": "Main Screen",
+            "context": "This is the main app screen containing login and welcome info",
             "elements": [
-                {
-                    "type": "Text",
-                    "label": "Welcome",
-                    "value": "Welcome to the app",
-                    "status": "visible",
-                    "context": "Header text"
-                },
                 {
                     "type": "Input/text",
                     "label": "Username",
                     "value": "",
                     "status": "editable",
-                    "context": "User login field"
+                    "context": "User login field, label and input combined"
                 },
                 {
                     "type": "Button/primary",
                     "label": "Submit",
                     "value": "Submit",
                     "status": "enabled",
-                    "context": "Login submission"
+                    "context": "Login submission button"
                 }
             ]
         }
@@ -91,30 +90,49 @@ Follow these instructions strictly:
 
 
 def enhance_ui_elements(ui_elements):
-    """Recursively enhance the UI elements by adding defaults and cleaning hierarchy."""
+    """Recursively enhance UI elements, merge label+input, handle container context, avoid duplicates."""
     enhanced = []
+    skip_next = False
+
     for i, elem in enumerate(ui_elements):
+        if skip_next:
+            skip_next = False
+            continue
+
         e_type = elem.get("type", "Text")
         new_elem = {"type": e_type}
 
-        # Labels / titles
-        new_elem["label"] = elem.get("label") or elem.get("title") or "Label"
+        # Combine label + input if next element is input
+        if e_type == "Text" and i+1 < len(ui_elements) and ui_elements[i+1].get("type", "") == "Input/text":
+            input_elem = ui_elements[i+1]
+            new_elem = {
+                "type": "Input/text",
+                "label": elem.get("value", "Label"),
+                "value": input_elem.get("value", ""),
+                "status": input_elem.get("status", "editable"),
+                "context": "Label and input combined"
+            }
+            skip_next = True
 
-        # Values
-        if e_type == "Text":
-            new_elem["value"] = elem.get("value", "Text")
-        elif e_type.startswith("Input"):
-            new_elem["value"] = elem.get("value", "")
-        elif e_type.startswith("Button"):
-            new_elem["value"] = elem.get("value", "Submit")
-            if "close" in e_type.lower():
-                new_elem["type"] = "Button/close"
-            else:
-                new_elem["type"] = "Button/primary"
+        else:
+            # Labels / titles
+            new_elem["label"] = elem.get("label") or elem.get("title") or "Label"
 
-        # Status and context
-        new_elem["status"] = elem.get("status", "visible")
-        new_elem["context"] = elem.get("context", "")
+            # Values
+            if e_type == "Text":
+                new_elem["value"] = elem.get("value", "Text")
+            elif e_type.startswith("Input"):
+                new_elem["value"] = elem.get("value", "")
+            elif e_type.startswith("Button"):
+                new_elem["value"] = elem.get("value", "Submit")
+                if "close" in e_type.lower():
+                    new_elem["type"] = "Button/close"
+                else:
+                    new_elem["type"] = "Button/primary"
+
+            # Status and context
+            new_elem["status"] = elem.get("status", "visible")
+            new_elem["context"] = elem.get("context", "")
 
         # Recursive enhancement for container elements
         if "elements" in elem:
@@ -133,7 +151,6 @@ def api():
             "allowed_methods": ["GET", "POST"]
         })
 
-    # POST flow
     image_bytes = None
     if "image" in request.files:
         image_bytes = request.files["image"].read()
