@@ -91,7 +91,7 @@ Example structure:
     return response.json()
 
 
-def enhance_ui_elements(ui_elements, is_root=False, parent_container=None):
+def enhance_ui_elements(ui_elements, is_root=False):
     enhanced = []
     skip_next = False
 
@@ -131,15 +131,13 @@ def enhance_ui_elements(ui_elements, is_root=False, parent_container=None):
         if "elements" in elem:
             new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
 
-            # For parent containers (Screen/Popup), enforce structured fields + context
+            # For parent containers (Screen/Popup), keep structured fields separate and context clean
             if is_root or e_type.lower() in ["screen/main", "popup/modal", "popup/bottom"]:
                 new_elem['type'] = e_type
                 new_elem['label'] = elem.get('title') or elem.get('label', 'Container')
                 new_elem['status'] = elem.get('status', 'visible')
-                # context can include AI description plus structured info
-                ai_desc = elem.get('context', '')
-                structured_info = f"Type: {new_elem['type']}, Label: {new_elem['label']}, Status: {new_elem['status']}"
-                new_elem['context'] = f"{ai_desc} {structured_info}".strip()
+                # Only AI description in context
+                new_elem['context'] = elem.get('context', '')
 
         enhanced.append(new_elem)
 
