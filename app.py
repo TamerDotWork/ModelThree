@@ -18,7 +18,7 @@ def call_gemini_api(image_bytes):
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     prompt_text = """
-You are a UX-aware assistant. Analyze this UI sketch image and return JSON ONLY.
+You are a UX-aware assistant. Analyze this UI sketch and return JSON ONLY.
 Follow these instructions strictly:
 
 1. Identify the main container (Screen or Popup) and provide a descriptive 'context' for it.
@@ -37,6 +37,33 @@ Follow these instructions strictly:
 5. Maintain the hierarchy of containers and their inner elements.
 6. Do not duplicate container title/head text as a separate element.
 7. Return valid JSON only.
+
+Example structure:
+{
+  "ui_elements": [
+    {
+      "type": "Screen/main",
+      "title": "Main Screen",
+      "context": "This is the main app screen containing login and welcome info",
+      "elements": [
+        {
+          "type": "Input/text",
+          "label": "Username",
+          "value": "",
+          "status": "editable",
+          "context": "User login field, label and input combined"
+        },
+        {
+          "type": "Button/primary",
+          "label": "Submit",
+          "value": "Submit",
+          "status": "enabled",
+          "context": "Login submission button"
+        }
+      ]
+    }
+  ]
+}
 """
 
     payload = {
@@ -64,7 +91,6 @@ Follow these instructions strictly:
 
 
 def enhance_ui_elements(ui_elements, is_root=False):
-    """Enhance UI elements, merge label+input, handle container context with structured fields."""
     enhanced = []
     skip_next = False
 
@@ -89,31 +115,32 @@ def enhance_ui_elements(ui_elements, is_root=False):
             skip_next = True
 
         else:
-            # Status and context
             new_elem["status"] = elem.get("status", "visible")
             new_elem["context"] = elem.get("context", "")
-
-            # Values
             new_elem["value"] = elem.get("value", "") if e_type.startswith("Input") or e_type.startswith("Text") else elem.get("value", "Submit")
 
-            # Type
             if e_type.startswith("Button"):
                 new_elem["type"] = "Button/close" if "close" in e_type.lower() else "Button/primary"
             else:
                 new_elem["type"] = e_type
 
-            # Label
             new_elem["label"] = elem.get("label") or elem.get("title") or "Label"
 
         # Recursive enhancement for container elements
         if "elements" in elem:
             new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
 
-            # For container nodes, keep structured fields AND add rich context
+            # Keep structured fields for parent container AND add descriptive context
             if is_root or e_type.lower() in ["screen/main", "popup/modal", "popup/bottom"]:
                 container_desc = new_elem.get('context', '')
-                meta_info = f"Type: {e_type}, Label: {elem.get('label', elem.get('title', ''))}, Status: {elem.get('status', 'visible')}"
-                new_elem["context"] = f"{container_desc} {meta_info}".strip()
+                new_elem['context'] = f"{container_desc}"
+                # parent keeps structured type, label, status
+                new_elem['type'] = e_type
+                if 'label' not in new_elem and 'title' in elem:
+                    new_elem['label'] = elem['title']
+                elif 'label' not in new_elem:
+                    new_elem['label'] = elem.get('label', 'Container')
+                new_elem['status'] = elem.get('status', 'visible')
 
         enhanced.append(new_elem)
 
@@ -123,10 +150,7 @@ def enhance_ui_elements(ui_elements, is_root=False):
 @app.route("/api", methods=["GET", "POST"])
 def api():
     if request.method == "GET":
-        return jsonify({
-            "message": "UI Processing API is running",
-            "allowed_methods": ["GET", "POST"]
-        })
+        return jsonify({"message": "UI Processing API is running", "allowed_methods": ["GET", "POST"]})
 
     image_bytes = None
     if "image" in request.files:
