@@ -84,8 +84,8 @@ def make_cors_response(data, status=200):
     return resp
 
 
-@app.route("/ModelThree/process-ui", methods=["GET", "POST", "OPTIONS"])
-def process_ui():
+@app.route("/api", methods=["GET", "POST", "OPTIONS"])
+def api():
     # Preflight OPTIONS
     if request.method == "OPTIONS":
         return make_cors_response({"message": "CORS preflight OK"}, 204)
