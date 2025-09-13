@@ -16,7 +16,7 @@ def call_gemini_api(image_bytes):
         raise Exception("Missing GEMINI_API_KEY")
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-    
+
     prompt_text = """
 You are a UX-aware assistant. Analyze this UI sketch image and return JSON ONLY.
 Follow these instructions strictly:
@@ -64,7 +64,7 @@ Follow these instructions strictly:
 
 
 def enhance_ui_elements(ui_elements, is_root=False):
-    """Enhance UI elements, merge label+input, handle container context, merge container metadata into context."""
+    """Enhance UI elements, merge label+input, handle container context with structured fields."""
     enhanced = []
     skip_next = False
 
@@ -109,14 +109,11 @@ def enhance_ui_elements(ui_elements, is_root=False):
         if "elements" in elem:
             new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
 
-            # Merge container metadata into context if root or container
+            # For container nodes, keep structured fields AND add rich context
             if is_root or e_type.lower() in ["screen/main", "popup/modal", "popup/bottom"]:
-                container_desc = f"{new_elem['context']}".strip()
+                container_desc = new_elem.get('context', '')
                 meta_info = f"Type: {e_type}, Label: {elem.get('label', elem.get('title', ''))}, Status: {elem.get('status', 'visible')}"
                 new_elem["context"] = f"{container_desc} {meta_info}".strip()
-                new_elem.pop("label", None)
-                new_elem.pop("status", None)
-                new_elem.pop("type", None)
 
         enhanced.append(new_elem)
 
