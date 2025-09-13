@@ -36,33 +36,7 @@ Follow these instructions strictly:
     - context: Optional description/context for the element's use
 5. Maintain the hierarchy of containers and their inner elements.
 6. Do not duplicate container title/head text as a separate element.
-7. Return valid JSON only. Example structure:
-
-{
-    "ui_elements": [
-        {
-            "type": "Screen/main",
-            "title": "Main Screen",
-            "context": "This is the main app screen containing login and welcome info",
-            "elements": [
-                {
-                    "type": "Input/text",
-                    "label": "Username",
-                    "value": "",
-                    "status": "editable",
-                    "context": "User login field, label and input combined"
-                },
-                {
-                    "type": "Button/primary",
-                    "label": "Submit",
-                    "value": "Submit",
-                    "status": "enabled",
-                    "context": "Login submission button"
-                }
-            ]
-        }
-    ]
-}
+7. Return valid JSON only.
 """
 
     payload = {
@@ -89,8 +63,8 @@ Follow these instructions strictly:
     return response.json()
 
 
-def enhance_ui_elements(ui_elements):
-    """Recursively enhance UI elements, merge label+input, handle container context, avoid duplicates."""
+def enhance_ui_elements(ui_elements, is_root=False):
+    """Enhance UI elements, merge label+input, handle container context, merge container metadata into context."""
     enhanced = []
     skip_next = False
 
@@ -100,7 +74,7 @@ def enhance_ui_elements(ui_elements):
             continue
 
         e_type = elem.get("type", "Text")
-        new_elem = {"type": e_type}
+        new_elem = {}
 
         # Combine label + input if next element is input
         if e_type == "Text" and i+1 < len(ui_elements) and ui_elements[i+1].get("type", "") == "Input/text":
@@ -115,28 +89,34 @@ def enhance_ui_elements(ui_elements):
             skip_next = True
 
         else:
-            # Labels / titles
-            new_elem["label"] = elem.get("label") or elem.get("title") or "Label"
-
-            # Values
-            if e_type == "Text":
-                new_elem["value"] = elem.get("value", "Text")
-            elif e_type.startswith("Input"):
-                new_elem["value"] = elem.get("value", "")
-            elif e_type.startswith("Button"):
-                new_elem["value"] = elem.get("value", "Submit")
-                if "close" in e_type.lower():
-                    new_elem["type"] = "Button/close"
-                else:
-                    new_elem["type"] = "Button/primary"
-
             # Status and context
             new_elem["status"] = elem.get("status", "visible")
             new_elem["context"] = elem.get("context", "")
 
+            # Values
+            new_elem["value"] = elem.get("value", "") if e_type.startswith("Input") or e_type.startswith("Text") else elem.get("value", "Submit")
+
+            # Type
+            if e_type.startswith("Button"):
+                new_elem["type"] = "Button/close" if "close" in e_type.lower() else "Button/primary"
+            else:
+                new_elem["type"] = e_type
+
+            # Label
+            new_elem["label"] = elem.get("label") or elem.get("title") or "Label"
+
         # Recursive enhancement for container elements
         if "elements" in elem:
             new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
+
+            # Merge container metadata into context if root or container
+            if is_root or e_type.lower() in ["screen/main", "popup/modal", "popup/bottom"]:
+                container_desc = f"{new_elem['context']}".strip()
+                meta_info = f"Type: {e_type}, Label: {elem.get('label', elem.get('title', ''))}, Status: {elem.get('status', 'visible')}"
+                new_elem["context"] = f"{container_desc} {meta_info}".strip()
+                new_elem.pop("label", None)
+                new_elem.pop("status", None)
+                new_elem.pop("type", None)
 
         enhanced.append(new_elem)
 
@@ -173,7 +153,7 @@ def api():
             raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
         ui_elements = json.loads(raw_text).get("ui_elements", [])
-        enhanced_ui = enhance_ui_elements(ui_elements)
+        enhanced_ui = enhance_ui_elements(ui_elements, is_root=True)
 
         return jsonify({"enhanced_ui": enhanced_ui, "raw_text": raw_text})
 
