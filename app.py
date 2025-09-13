@@ -72,27 +72,11 @@ def enhance_ui_elements(ui_elements):
     return enhanced
 
 
-def make_cors_response(data, status=200):
-    """Helper to add CORS headers to all responses"""
-    if isinstance(data, dict):
-        resp = jsonify(data)
-    else:
-        resp = make_response(data, status)
-    resp.headers["Access-Control-Allow-Origin"] = "https://tamer.work"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return resp
-
-
-@app.route("/api", methods=["GET", "POST", "OPTIONS"])
+@app.route("/api", methods=["GET", "POST"])
 def api():
-    # Preflight OPTIONS
-    if request.method == "OPTIONS":
-        return make_cors_response({"message": "CORS preflight OK"}, 204)
-
     # GET for status/log
     if request.method == "GET":
-        return make_cors_response({
+        return jsonify({
             "message": "UI Processing API is running",
             "allowed_methods": ["GET", "POST"]
         })
@@ -107,13 +91,13 @@ def api():
             image_bytes = base64.b64decode(data["image_base64"])
 
     if not image_bytes:
-        return make_cors_response({"error": "No image provided"}, 400)
+        return jsonify({"error": "No image provided"}), 400
 
     try:
         raw_response = call_gemini_api(image_bytes)
         candidates = raw_response.get("candidates", [])
         if not candidates:
-            return make_cors_response({"error": "No candidates returned"}, 500)
+            return jsonify({"error": "No candidates returned"}), 500
 
         raw_text = candidates[0]["content"]["parts"][0].get("text", "").strip()
         if raw_text.startswith("```json"):
@@ -122,10 +106,10 @@ def api():
         ui_elements = json.loads(raw_text).get("ui_elements", [])
         enhanced_ui = enhance_ui_elements(ui_elements)
 
-        return make_cors_response({"enhanced_ui": enhanced_ui, "raw_text": raw_text})
+        return jsonify({"enhanced_ui": enhanced_ui, "raw_text": raw_text})
 
     except Exception as e:
-        return make_cors_response({"error": str(e)}, 500)
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
