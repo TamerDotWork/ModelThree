@@ -1,13 +1,132 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import os
+import base64
+import json
+import requests
+from flask import Flask, request, jsonify, make_response
 
 app = Flask(__name__)
- 
-@app.route('/api', methods=['POST'])
-def api():
-    data = request.get_json(silent=True)  # optional input
-    print("Received:", data)
-    return jsonify({"message": "Hello, World!"})
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5003, debug=True)
+GEMINI_API_KEY = 'AIzaSyAtH6b2eUlVWQ1dfkVbnzsp_zHhaY9rzFA'
+GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
+GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+
+
+def call_gemini_api(image_bytes):
+    if not GEMINI_API_KEY:
+        raise Exception("Missing GEMINI_API_KEY")
+
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"inline_data": {"mime_type": "image/png", "data": image_b64}},
+                    {"text": """You are a UX-aware assistant. Analyze this UI sketch and return JSON ONLY."""}
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(
+        GEMINI_ENDPOINT,
+        params={"key": GEMINI_API_KEY},
+        headers={"Content-Type": "application/json"},
+        json=payload,
+    )
+
+    if response.status_code != 200:
+        raise Exception(f"Gemini API error: {response.status_code} {response.text}")
+
+    return response.json()
+
+
+def enhance_ui_elements(ui_elements):
+    enhanced = []
+    for i, elem in enumerate(ui_elements):
+        e_type = elem.get("type", "Text")
+        new_elem = {"type": e_type}
+
+        if e_type == "Input/text":
+            label = elem.get("label")
+            if not label and i > 0 and ui_elements[i - 1].get("type") == "Text":
+                label = ui_elements[i - 1].get("value", "")
+            new_elem["label"] = label or "Label"
+
+        if e_type.startswith("Button"):
+            if "close" in e_type.lower():
+                new_elem["type"] = "Button/close"
+                new_elem["value"] = elem.get("value", "Close")
+            else:
+                new_elem["type"] = "Button/primary"
+                new_elem["value"] = elem.get("value", "Submit")
+
+        if e_type in ["Popup/bottom", "Screen/main"]:
+            new_elem["title"] = elem.get("title") or "Myhead"
+            new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
+
+        if e_type == "Text":
+            new_elem["value"] = elem.get("value", "Text")
+
+        enhanced.append(new_elem)
+
+    return enhanced
+
+
+def make_cors_response(data, status=200):
+    """Helper to add CORS headers to all responses"""
+    if isinstance(data, dict):
+        resp = jsonify(data)
+    else:
+        resp = make_response(data, status)
+    resp.headers["Access-Control-Allow-Origin"] = "https://tamer.work"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return resp
+
+
+@app.route("/ModelThree/process-ui", methods=["GET", "POST", "OPTIONS"])
+def process_ui():
+    # Preflight OPTIONS
+    if request.method == "OPTIONS":
+        return make_cors_response({"message": "CORS preflight OK"}, 204)
+
+    # GET for status/log
+    if request.method == "GET":
+        return make_cors_response({
+            "message": "UI Processing API is running",
+            "allowed_methods": ["GET", "POST"]
+        })
+
+    # POST flow
+    image_bytes = None
+    if "image" in request.files:
+        image_bytes = request.files["image"].read()
+    else:
+        data = request.get_json()
+        if data and "image_base64" in data:
+            image_bytes = base64.b64decode(data["image_base64"])
+
+    if not image_bytes:
+        return make_cors_response({"error": "No image provided"}, 400)
+
+    try:
+        raw_response = call_gemini_api(image_bytes)
+        candidates = raw_response.get("candidates", [])
+        if not candidates:
+            return make_cors_response({"error": "No candidates returned"}, 500)
+
+        raw_text = candidates[0]["content"]["parts"][0].get("text", "").strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+
+        ui_elements = json.loads(raw_text).get("ui_elements", [])
+        enhanced_ui = enhance_ui_elements(ui_elements)
+
+        return make_cors_response({"enhanced_ui": enhanced_ui, "raw_text": raw_text})
+
+    except Exception as e:
+        return make_cors_response({"error": str(e)}, 500)
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5003)
