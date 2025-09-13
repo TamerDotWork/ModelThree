@@ -1,12 +1,14 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)  # allow all origins, you can restrict later
 
-@app.route('/api', methods=['POST'])
+@app.route('/ModelThree/api', methods=['POST'])
 def api():
-    data = request.get_json()  # receive JSON from AJAX
-    print("Received:", data)   # print to terminal
+    data = request.get_json(silent=True)  # optional input
+    print("Received:", data)
     return jsonify({"message": "Hello, World!"})
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0", port=5003)
+    app.run(host="0.0.0.0", port=5003, debug=True)
