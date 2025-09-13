@@ -16,12 +16,62 @@ def call_gemini_api(image_bytes):
         raise Exception("Missing GEMINI_API_KEY")
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    
+    prompt_text = """
+You are a UX-aware assistant. Analyze this UI sketch image and return JSON ONLY.
+Follow these instructions strictly:
+
+1. Start with the main container element: either "Screen/main" or a "Popup" type.
+2. Each container should have a "title" or "label".
+3. Include all child elements in an "elements" array.
+4. Each element must have the following fields (if applicable):
+    - type: The type of element (Text, Input/text, Button/primary, Button/close, etc.)
+    - label/title: The text label or title associated with the element
+    - value: The content or default value of the element
+    - status: Optional state info (enabled, disabled, selected, etc.)
+    - context: Optional description/context for the element's use
+5. Maintain the hierarchy of containers and their inner elements.
+6. Return valid JSON only. Example structure:
+
+{
+    "ui_elements": [
+        {
+            "type": "Screen/main",
+            "title": "Main Screen",
+            "elements": [
+                {
+                    "type": "Text",
+                    "label": "Welcome",
+                    "value": "Welcome to the app",
+                    "status": "visible",
+                    "context": "Header text"
+                },
+                {
+                    "type": "Input/text",
+                    "label": "Username",
+                    "value": "",
+                    "status": "editable",
+                    "context": "User login field"
+                },
+                {
+                    "type": "Button/primary",
+                    "label": "Submit",
+                    "value": "Submit",
+                    "status": "enabled",
+                    "context": "Login submission"
+                }
+            ]
+        }
+    ]
+}
+"""
+
     payload = {
         "contents": [
             {
                 "parts": [
                     {"inline_data": {"mime_type": "image/png", "data": image_b64}},
-                    {"text": """You are a UX-aware assistant. Analyze this UI sketch and return JSON ONLY."""}
+                    {"text": prompt_text}
                 ]
             }
         ]
@@ -41,31 +91,34 @@ def call_gemini_api(image_bytes):
 
 
 def enhance_ui_elements(ui_elements):
+    """Recursively enhance the UI elements by adding defaults and cleaning hierarchy."""
     enhanced = []
     for i, elem in enumerate(ui_elements):
         e_type = elem.get("type", "Text")
         new_elem = {"type": e_type}
 
-        if e_type == "Input/text":
-            label = elem.get("label")
-            if not label and i > 0 and ui_elements[i - 1].get("type") == "Text":
-                label = ui_elements[i - 1].get("value", "")
-            new_elem["label"] = label or "Label"
+        # Labels / titles
+        new_elem["label"] = elem.get("label") or elem.get("title") or "Label"
 
-        if e_type.startswith("Button"):
-            if "close" in e_type.lower():
-                new_elem["type"] = "Button/close"
-                new_elem["value"] = elem.get("value", "Close")
-            else:
-                new_elem["type"] = "Button/primary"
-                new_elem["value"] = elem.get("value", "Submit")
-
-        if e_type in ["Popup/bottom", "Screen/main"]:
-            new_elem["title"] = elem.get("title") or "Myhead"
-            new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
-
+        # Values
         if e_type == "Text":
             new_elem["value"] = elem.get("value", "Text")
+        elif e_type.startswith("Input"):
+            new_elem["value"] = elem.get("value", "")
+        elif e_type.startswith("Button"):
+            new_elem["value"] = elem.get("value", "Submit")
+            if "close" in e_type.lower():
+                new_elem["type"] = "Button/close"
+            else:
+                new_elem["type"] = "Button/primary"
+
+        # Status and context
+        new_elem["status"] = elem.get("status", "visible")
+        new_elem["context"] = elem.get("context", "")
+
+        # Recursive enhancement for container elements
+        if "elements" in elem:
+            new_elem["elements"] = enhance_ui_elements(elem.get("elements", []))
 
         enhanced.append(new_elem)
 
@@ -74,7 +127,6 @@ def enhance_ui_elements(ui_elements):
 
 @app.route("/api", methods=["GET", "POST"])
 def api():
-    # GET for status/log
     if request.method == "GET":
         return jsonify({
             "message": "UI Processing API is running",
