@@ -3,7 +3,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
  
-@app.route('/ModelThree/api', methods=['POST'])
+@app.route('/api', methods=['POST'])
 def api():
     data = request.get_json(silent=True)  # optional input
     print("Received:", data)
